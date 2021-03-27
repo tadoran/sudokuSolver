@@ -1,22 +1,18 @@
-import time
-
-# import excel3
 from misc import looping_char
 from point import Point
 
 gen = looping_char.gen
 
 
-class Field(object):
-    snapshots = []
-    solution = None
+class Field:
 
     def __init__(self):
         self.ready = False
-        self.field = [[Point(y, x, value=0, parent=self) for x in range(9)] for y in range(9)]
+        self.field = tuple(tuple(Point(y, x, value=0, parent=self) for x in range(9)) for y in range(9))
+
         self.solved = False
         self.unsolvable = False
-        self.check_queue = set()
+        self.possible_branches = []
 
     def enter_values(self, matrix, solve: bool = True):
         self.ready = False
@@ -37,75 +33,66 @@ class Field(object):
             field = self.field
         return "".join(str(field[y][x].value) for y in range(9) for x in range(9))
 
-    def solve(self):
-        points = self.get_all_points()
-        self.check_queue.update(points)
-        Field.snapshots.append(self.get_values())
+    @staticmethod
+    def matrix_from_str(matrix_str):
+        return [matrix_str[y * 9: y * 9 + 9] for y in range(9)]
+
+    def enter_from_str(self, matrix_str):
+        matrix = self.matrix_from_str(matrix_str)
+        self.enter_values(matrix=matrix, solve=True)
+
+    def mutate_field(self, new_matrix, calculate=True):
         try:
-            while len(self.check_queue) > 0:
-                point = self.check_queue.pop()
-                point.calculate()
-            # [point.calculate() for point in points]
+            self.ready = False
+            for y, row in enumerate(self.field):
+                for x, point in enumerate(row):
+                    val = int(new_matrix[y][x])
+                    if point.value != val:
+                        for related_point in point.get_all_related_points():
+                            related_point.flush()
+                        point.value = val
+
+            self.ready = True
+            if calculate:
+                for y, row in enumerate(self.field):
+                    for x, point in enumerate(row):
+                        point.calculate()
+
+        except ValueError:
+            self.unsolvable = True
+            return False
         except Exception as e:
             # print(e)
-            raise Exception("Could not solve this variant")
+            return False
+        self.unsolvable = False
+        return True
+
+    def solve(self):
+        if self.unsolvable:
+            return
+
+        points = self.get_all_points()
+        self.ready = True
+        try:
+            for point in points:
+                point.calculate()
+        except Exception as e:
+            self.unsolvable = True
+            return
 
         if len([point.value for point in points if point.value == 0]) > 0:
+            most_restricted_points = sorted([point for point in points if point.value == 0],
+                                            key=lambda x: len(x.impossible_values), reverse=True)
 
-            print(f"No solution yet - {time.ctime()} {next(gen)}", end="\r", flush=True)
-            # print(f"No solution yet - {time.ctime()}")
-            # print(self)
-            # excel3.reprFieldInXl(self)
-            # print("...")
-            most_restricted_points = list(
-                sorted([point for point in points if point.value == 0], key=lambda x: len(x.impossible_values),
-                       reverse=True))
-            # print(self)
-            exit_for = False
+            self_str = self.get_values(self.field)
             for restr_pt in most_restricted_points:
-                if exit_for or self.unsolvable or Field.solution is not None:
-                    break
-
+                change_pos = (restr_pt.row) * 9 + (restr_pt.column)
                 for possible_val in restr_pt.possible_values:
-                    if exit_for or self.unsolvable or Field.solution is not None:
-                        break
-                    # print(f"Assume that Point's {restr_pt} value is {possible_val}")
-                    branch_field = Field()
-                    for pt in self.get_all_points():
-                        try:
-                            branch_field.field[pt.row][pt.column].value = pt.value
-                            branch_field.field[pt.row][pt.column].initial = True
-                        except Exception as e:
-                            # print(e)
-                            pass
+                    new_str = self_str[:change_pos] + str(possible_val) + self_str[change_pos + 1:]
+                    self.possible_branches.append(new_str)
 
-                    branch_field.field[restr_pt.row][restr_pt.column].value = possible_val
-                    branch_field.field[restr_pt.row][restr_pt.column].initial = True
-                    if branch_field.get_values() in Field.snapshots:
-                        continue
-
-                    branch_field.ready = True
-                    try:
-                        branch_field.solve()
-                    except Exception:
-                        continue
-
-                    if branch_field.solved:
-                        exit_for = True
-                        Field.solution = branch_field
-                        self = branch_field
-                        return True
-
-                    elif branch_field.unsolvable:
-                        # print("This variant is unsolvable. Skip it")
-                        del branch_field
-                        break
         else:
-            print("Sudoku is solved!")
             self.solved = True
-            print(self)
-            print("")
-            return True
 
     def get_all_points(self):
         return [self.field[y][x] for y in range(9) for x in range(9)]
@@ -124,17 +111,11 @@ class Field(object):
     def get_row(self, point):
         return [self.field[point.row][x] for x in range(len(self.field[point.row]))]
 
-    def get_snapshot(self):
-        return [[self.field[y][x].value for x, column in enumerate(row)] for y, row in enumerate(self.field)]
-
     def __str__(self):
-        # if excel3.useExcel:
-        #     excel3.reprFieldInXl(self)
-
         txt = ""
         for y, line in enumerate(self.field):
 
-            if (y) % 3 == 0:
+            if y % 3 == 0:
                 txt += "-" * (9 + 1) * 3 + "-\n"
             txt += "|"
             for x, point in enumerate(line):
@@ -143,5 +124,4 @@ class Field(object):
                     txt += "|"
             txt += "\n"
         txt += "-" * (9 + 1) * 3 + "-\n"
-        # excel.reprFieldInXl(self)
         return txt.replace("0", ".")

@@ -9,7 +9,7 @@ def get_from_web(difficulty: int = 1):
         return None
 
 
-def fill_field_from_web(json_load: dict):
+def matrix_from_web(json_load: dict):
     squares = json_load.get('squares', None)
     if not squares:
         return None

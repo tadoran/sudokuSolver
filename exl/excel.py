@@ -1,7 +1,7 @@
 import win32com.client as win32
 
-from field import Field
-from point import Point
+from old.field_old import Field
+from old.point_old import PointOld
 
 excel = win32.GetActiveObject('Excel.Application')
 
@@ -21,7 +21,7 @@ def reprFieldInXl(field: Field):
     excel.ScreenUpdating = True
 
 
-def changeCellInXl(pt: Point):
+def changeCellInXl(pt: PointOld):
     if not useExcel: return
     excel.ScreenUpdating = False
     if pt.value != 0:
@@ -29,7 +29,7 @@ def changeCellInXl(pt: Point):
     excel.ScreenUpdating = True
 
 
-def changePossibles(pt: Point):
+def changePossibles(pt: PointOld):
     if not useExcel: return
     excel.run("setPointPossibleVals", pt.row, pt.column, pt.possible_values, False)
 

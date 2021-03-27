@@ -1,16 +1,18 @@
 from misc.static_method import static
 
 
-class Point:
-    valid_values = set(range(1, 10))
+class PointOld:
+    # possible_values = list(range(10))
+    vals_possible = set(range(1, 10))
     parent = None
 
-    def __init__(self, row, column, value=0, parent=None):
+    def __init__(self, row, column, value=0, parent=None, is_initial: bool = False):
         self.row = row
         self.column = column
         self._value = value
         self.restricted_values = set()
         self.parent = parent
+        self.initial = is_initial
 
     @property
     def value(self):
@@ -23,21 +25,24 @@ class Point:
             raise ValueError(f"Value can be one of following: {self.possible_values + [0]}, {val} was provided.")
         if val > 0:
             self.restricted_values.update({n for n in range(9) if n != val})
-
         self.calculate()
 
     @property
     def possible_values(self):
-        possible_values = list(Point.valid_values - self.impossible_values)
+        possible_values = list(PointOld.vals_possible - self.impossible_values)
+
+        # if len(possible_values) == 0:
+        #     self.parent.tested = True
         return possible_values
 
     @property
     def impossible_values(self):
-        neighbors_values = {point.value for point in self.get_all_related_points() if point.value != 0}
-        return neighbors_values.union(self.restricted_values)
+        neigbors_vals = {point.value for point in self.all_related if point.value != 0}
+        return neigbors_vals.union(self.restricted_values)
 
+    @property
     @static
-    def get_all_related_points(self):
+    def all_related(self):
         all_related = set(self.get_row() + self.get_column() + self.get_square())
         return {point for point in all_related if point != self}
 
@@ -55,6 +60,7 @@ class Point:
 
     def calculate_by_restrictions(self):
         if len(self.possible_values) == 0:
+            # self.parent.tested = True
             raise Exception("Unsolvable")
 
         elif len(self.possible_values) == 1:
@@ -64,11 +70,11 @@ class Point:
         if self.value != 0:
             return
         for pts in (_ for _ in (self.get_square(), self.get_row(), self.get_column())):
-            for val in Point.valid_values:
+            for val in range(9):
                 # If there is only one possible position for element - it should be selected
                 val_possible_in_iter = (pt for pt in pts if val in pt.possible_values)
-                val_possible_in_first = None
                 try:
+                    val_possible_in_first = None
                     val_possible_in_first = next(val_possible_in_iter)
                     next(val_possible_in_iter)
                 except StopIteration:
@@ -78,23 +84,22 @@ class Point:
     def calculate_single_pos_possible_old(self):
         if self.value != 0:
             return
-        for pts in (_ for _ in (self.get_square(), self.get_row(), self.get_column())):
+        for pts in (_ for _ in [self.get_square(), self.get_row(), self.get_column()]):
+            # Neighbours
+            line_pts = pts
             # Values that already present
-            solved_values = {pt.value for pt in pts if pt.value != 0}
+            solved_vals = [pt.value for pt in line_pts if pt.value != 0]
             # Values that are not yet set
-            line_unsolved_values = Point.valid_values - solved_values
+            line_unsolved_vals = set(range(1, 10)) - set(solved_vals)
 
-            self_possible_in_line = line_unsolved_values.intersection(self.possible_values)
+            self_possible_in_line = line_unsolved_vals.intersection(self.possible_values)
 
-            line_possible = [pt.possible_values for pt in pts if pt.value == 0 and pt != self]
-            try:
-                for val in self_possible_in_line:
-                    if len([_ for _ in line_possible if val in _]) == 0:
-                        self.value = val
-                        break
-            except Exception as e:
-                print(e)
-
+            line_possible = [set(range(1, 10)) - pt.impossible_values for pt in line_pts if
+                             pt.value == 0 and pt != self]
+            for val in self_possible_in_line:
+                if len([_ for _ in line_possible if val in _]) == 0:
+                    self.value = val
+                    break
             if self.value != 0:
                 break
 
@@ -102,7 +107,8 @@ class Point:
         if self.value != 0:
             return
         for pts in (_ for _ in [self.get_square(), self.get_row(), self.get_column()]):
-            line_possible = {pt: tuple(pt.possible_values) for pt in pts if pt.value == 0}
+            line_possible = {pt: tuple(sorted(set(range(1, 10)) - pt.impossible_values))
+                             for pt in pts if pt.value == 0}
 
             possible_combinations = {}
             for key, val in line_possible.items():
@@ -112,7 +118,10 @@ class Point:
                 possible_combinations[val] += [key]
 
             for key, val in possible_combinations.items():
+                # if len(key) == 2 and len(val) == 2:
                 if len(key) == len(val):
+                    # if len(key) > 2:
+                    #     print(f"{len(key)} similar values")
                     for key1, value1 in line_possible.items():
                         if key1.value > 0:
                             continue
@@ -129,11 +138,13 @@ class Point:
 
         square = self.get_square()
         for possible_value in self.possible_values:
+            # print(possible_value)
             possible_rows = set(el.row for el in square if possible_value in el.possible_values)
             if len(possible_rows) == 1:
-                other_cells_in_line = (el for el in self.get_row() if el not in square)
+                other_cells_in_line = [el for el in self.get_row() if el not in square]
                 for el in other_cells_in_line:
                     el.restricted_values.add(possible_value)
+                # pass
 
             possible_columns = set(el.column for el in square if possible_value in el.possible_values)
             if len(possible_columns) == 1:
@@ -155,13 +166,16 @@ class Point:
 
         if self.value != 0:
             try:
-                for point in self.get_all_related_points():
-                    if point != self and point.value == 0:
-                        point.calculate()
+                self.parent.check_queue.update(
+                    [point for point in self.all_related if point != self and point.value == 0])
+                # [point.calculate() for point in self.all_related if point != self and point.value == 0]
             except Exception as e:
                 raise Exception(e)
         else:
             pass
 
-    def flush(self):
-        self.restricted_values = set()
+    def __str__(self):
+        return f"({self.row}-{self.column})-{self.value}"
+
+    def __repr__(self):
+        return f"({self.row}-{self.column})-{self.value}"
