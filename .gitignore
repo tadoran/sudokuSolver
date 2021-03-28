@@ -134,7 +134,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# pytype static type analyzer
+# pytype calculated_once_dict type analyzer
 .pytype/
 
 # Cython debug symbols

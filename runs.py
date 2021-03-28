@@ -103,9 +103,12 @@ def get_saved_fields_from_web():
     @timeit
     def run_all():
         for matrix in matrices:
-            solver = Solver(print_start_matrix=False, print_solution_matrix=False)
+            # solver = Solver(print_start_matrix=False, print_solution_matrix=False)
+            solver = Solver()
             solver.enter_values(matrix)
             solver.solve()
+            # print(solver.initial_field)
+            # print(solver.field)
             print("-" * 40)
 
     run_all()

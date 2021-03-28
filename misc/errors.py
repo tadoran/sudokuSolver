@@ -1,0 +1,2 @@
+class UnsolvableError(ValueError):
+    pass
