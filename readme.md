@@ -6,7 +6,7 @@ On input you provide sequence that represent given field,
 in return sudokuSolver gives you calculated solution for it.  
 
 
-####Setting initial state
+#### Setting initial state
 You can specify puzzle's values as a string of 81 char - (9 chars for each row) * 9 rows like:  
 ```python
 #            row_1___|row_2___|row_3___|row_4___|row_5___|row_6___|row_7___|row_8___|row_9___|
