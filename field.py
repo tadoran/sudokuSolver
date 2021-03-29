@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 from misc.errors import UnsolvableError
 from point import Point
 
@@ -27,6 +29,8 @@ class Field:
             for y, row in enumerate(matrix):
                 for x, column in enumerate(row):
                     self.field[y][x].value = int(matrix[y][x])
+            self.initial_field = deepcopy(self.field)
+
         except UnsolvableError:
             self.unsolvable = True
             return

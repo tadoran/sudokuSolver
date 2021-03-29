@@ -28,10 +28,13 @@ class Solver:
         for point in self.field.get_all_points():
             point.flush()
         self.snapshots.update({matrix_str: None})
+        self._enter_initial_state()
 
-    def enter_values(self, matrix) -> None:
+    def enter_values(self, matrix, solve=True) -> None:
         """
         Fill the Field from a given iterable that represents Sudoku field values
+        :param solve: Defines if field should be solved once it is entered
+        :type solve: boolean
         :param matrix: List of 9*9 integers or list of 9*9 Points
         :type matrix: list
         """
@@ -44,6 +47,9 @@ class Solver:
         for point in self.field.get_all_points():
             point.flush()
         self.snapshots.update({matrix_str: None})
+        self._enter_initial_state()
+        if solve:
+            self.solve()
 
     @property
     def initial_field(self) -> tuple:
@@ -52,7 +58,21 @@ class Solver:
         :return: Field object, representing values that were set before Sudoku was processed
         :rtype: tuple
         """
-        return self.field.initial_field
+        f = Field()
+        f.enter_values(self.field.initial_field, solve=False)
+        return f
+
+    def _enter_initial_state(self) -> None:
+        """
+        Saves initial state of the Field
+        """
+        field = self.field
+        try:
+            current_field_str = list(self.snapshots.keys())[-1]
+            field.mutate_field(field.matrix_from_str(current_field_str), calculate=False)
+            self.field.initial_field = deepcopy(self.field.field)
+        except Exception as e:
+            print(e)
 
     @timeit
     def solve(self) -> Field:
@@ -76,22 +96,17 @@ class Solver:
             try:
                 current_field_str, _ = self.snapshots.popitem(last=True)
                 self.tested.add(current_field_str)
-                field.mutate_field(field.matrix_from_str(current_field_str), iteration != 0)
+                field.mutate_field(field.matrix_from_str(current_field_str), calculate=iteration != 0)
                 if iteration == 0:
                     if self.print_start_matrix:
-                        self.field.initial_field = deepcopy(self.field)
                         print(field)
-                    pass
+
                 field.solve()
             except UnsolvableError:
                 continue
             except Exception as e:
                 print(e)
                 continue
-
-            # print(current_field_str)
-            # print(field)
-            # field.enter_from_str(current_field_str)
 
             if field.solved:
                 print(f"Solution was found on step #{iteration}")

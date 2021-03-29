@@ -14,6 +14,9 @@ class Point:
         self.parent = parent
         self.has_value = False
 
+    def __int__(self):
+        return self.value
+
     @property
     def value(self) -> int:
         """
