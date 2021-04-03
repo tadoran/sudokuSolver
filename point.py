@@ -149,7 +149,8 @@ class Point:
                         self.value = val
                         break
             except Exception as e:
-                print(e)
+                # print(e)
+                pass
 
             if self.has_value:
                 break
@@ -238,3 +239,6 @@ class Point:
         Used for mutation from a Field().
         """
         self.restricted_values = set()
+
+    def __repr__(self):
+        return f"Point(row={self.row}, column={self.column}, value={self.value})"

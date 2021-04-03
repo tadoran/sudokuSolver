@@ -1,6 +1,9 @@
 from copy import deepcopy
+from itertools import permutations, chain
 
 from misc.errors import UnsolvableError
+from misc.static_method import calculated_once_dict
+from misc.string_manipulations import string_mutations, difference_indices
 from point import Point
 
 
@@ -39,7 +42,7 @@ class Field:
         if solve:
             self.solve()
 
-    def get_values(self, field=None) -> str:
+    def get_values_as_str(self, field=None) -> str:
         """
         Returns string that represent Sudoku values as string 9 * 9 chars long
         E.g '436821975982567413751934682275193846643278159819645237367489521594312768128756394'
@@ -100,13 +103,15 @@ class Field:
         """
         try:
             self.ready = False
-            for y, row in enumerate(self.field):
-                for x, point in enumerate(row):
-                    val = int(new_matrix[y][x])
-                    if point.value != val:
-                        for related_point in point.get_all_related_points():
-                            related_point.flush()
-                        point.value = val
+            differences = difference_indices(self.get_values_as_str(self.field), "".join(new_matrix))
+            for diff in differences:
+                row, col = diff // 9, diff % 9
+                cur_point = self.field[row][col]
+                new_val = int(new_matrix[row][col])
+                if cur_point.value != new_val:
+                    for related_point in cur_point.get_all_related_points():
+                        related_point.flush()
+                    cur_point.value = new_val
 
             self.ready = True
             if calculate:
@@ -118,7 +123,7 @@ class Field:
             self.unsolvable = True
             return False
         except Exception as e:
-            print(e)
+            # print(e)
             return False
 
         self.unsolvable = False
@@ -148,27 +153,43 @@ class Field:
             return False
 
         if len([point.value for point in points if not point.has_value]) > 0:
-            most_restricted_points = sorted((point for point in points if not point.has_value),
-                                            key=lambda x: len(x.impossible_values), reverse=True)
+            self.propose_most_restricted_point_fill(points)
 
-            self_str = self.get_values(self.field)
-            for restricted_point in most_restricted_points:
-                change_pos = restricted_point.row * 9 + restricted_point.column
-                for possible_val in restricted_point.possible_values:
-                    new_str = self_str[:change_pos] + str(possible_val) + self_str[change_pos + 1:]
-                    self.possible_branches.append(new_str)
+            # Shows poor result times
+            # self.propose_lines_fill()
 
         else:
             self.solved = True
         return True
 
-    def get_all_points(self) -> list:
+    @calculated_once_dict
+    def get_all_squares(self) -> tuple:
+        return tuple(self.get_square(self.get_point(y, x)) for y in range(1, 9, 3) for x in range(1, 9, 3))
+
+    @calculated_once_dict
+    def get_all_rows(self) -> tuple:
+        return tuple(self.get_row(self.get_point(y, 0)) for y in range(9))
+
+    @calculated_once_dict
+    def get_all_columns(self) -> tuple:
+        return tuple(self.get_column(self.get_point(0, x)) for x in range(9))
+
+    @calculated_once_dict
+    def get_all_lines(self) -> tuple:
+        all = []
+        all.extend(self.get_all_rows())
+        all.extend(self.get_all_columns())
+        all.extend(self.get_all_squares())
+        return tuple(all)
+
+    @calculated_once_dict
+    def get_all_points(self) -> tuple:
         """
         Returns list of all 81 Points from the Field
         :return: All Points from the Field
         :rtype: list[Point]
         """
-        return [self.field[y][x] for y in range(9) for x in range(9)]
+        return tuple(self.field[y][x] for y in range(9) for x in range(9))
 
     def get_point(self, row: int, column: int) -> Point:
         """
@@ -178,32 +199,32 @@ class Field:
         """
         return self.field[row][column]
 
-    def get_square(self, point: Point) -> list:
+    def get_square(self, point: Point) -> tuple:
         """
         Returns list of all related Points from the Field in same square
         :return: list of Points at the same square as provided Point
         :rtype: list[*Point]
         """
         row, col = point.row, point.column
-        return [self.field[y][x] for x in range(3 * (col // 3), 3 * (col // 3) + 3) for y in
-                range(3 * (row // 3), 3 * (row // 3) + 3)]
+        return tuple(self.field[y][x] for x in range(3 * (col // 3), 3 * (col // 3) + 3) for y in
+                     range(3 * (row // 3), 3 * (row // 3) + 3))
 
-    def get_column(self, point) -> list:
+    def get_column(self, point) -> tuple:
         """
         Returns list of all Points from the Field in same column
         :return: list of Points at the same column as provided Point
         :rtype: list[*Point]
         """
-        return [self.field[y][point.column] for y in range(len(self.field))]
+        return tuple(self.field[y][point.column] for y in range(len(self.field)))
 
-    def get_row(self, point) -> list:
+    def get_row(self, point) -> tuple:
         """
         Returns list of all Points from the Field in same row
         :return: list of Points at the same row as provided Point
         :rtype: list[*Point]
         """
 
-        return [self.field[point.row][x] for x in range(len(self.field[point.row]))]
+        return tuple(self.field[point.row][x] for x in range(len(self.field[point.row])))
 
     def __str__(self):
         txt = ""
@@ -219,3 +240,50 @@ class Field:
             txt += "\n"
         txt += "-" * (9 + 1) * 3 + "-\n"
         return txt.replace("0", ".")
+
+    def propose_lines_fill(self):
+        all_lines = self.get_all_lines()
+
+        most_restricted_lines = {}
+        for i, line in enumerate(all_lines):
+            empty_points = [pt for pt in line if not pt.has_value]
+            line_len = len(empty_points)
+            possibles = (pt.possible_values for pt in empty_points)
+            possible_values = set(chain(*possibles))
+            # TODO: Should stay iterable - find a algorithm to count permutations count w\o it's run
+            line_permutations = tuple(permutations(possible_values, line_len))
+            permutations_count = len(line_permutations)
+            try:
+                most_restricted_lines[i] = {}
+                most_restricted_lines[i]["len"] = line_len
+                most_restricted_lines[i]["points"] = tuple((pt.row, pt.column) for pt in empty_points)
+                most_restricted_lines[i]["str_pos"] = tuple(
+                    coord[0] * 9 + coord[1] for coord in most_restricted_lines[i]["points"])
+                most_restricted_lines[i]["possible_values"] = possible_values
+                most_restricted_lines[i]["permutations"] = line_permutations
+                most_restricted_lines[i]["permutations_count"] = permutations_count
+            except Exception as e:
+                print(e)
+
+        most_restricted_lines = sorted(most_restricted_lines.values(), key=lambda x: x["permutations_count"])[:3]
+        field_str = self.get_values_as_str()
+        for line in most_restricted_lines:
+            values_permutations = line["permutations"]
+            mutations = string_mutations(input_str=field_str, positions_to_replace=line["str_pos"],
+                                         values_to_insert=values_permutations)
+            for mutation in mutations:
+                self.possible_branches.append(mutation)
+
+    def propose_most_restricted_point_fill(self, points):
+        most_restricted_points = sorted((point for point in points if not point.has_value),
+                                        key=lambda x: len(x.impossible_values), reverse=True)
+
+        field_str = self.get_values_as_str(self.field)
+        for restricted_point in most_restricted_points:
+            change_pos = restricted_point.row * 9 + restricted_point.column
+
+            values_permutations = restricted_point.possible_values
+            mutations = string_mutations(input_str=field_str, positions_to_replace=change_pos,
+                                         values_to_insert=values_permutations)
+            for mutation in mutations:
+                self.possible_branches.append(mutation)

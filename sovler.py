@@ -39,7 +39,7 @@ class Solver:
         :type matrix: list
         """
         if isinstance(matrix, Field):
-            matrix_str = self.field.get_values()
+            matrix_str = self.field.get_values_as_str()
         else:
             matrix_str = "".join("".join(str(x) for x in y) for y in matrix)
 
@@ -72,7 +72,8 @@ class Solver:
             field.mutate_field(field.matrix_from_str(current_field_str), calculate=False)
             self.field.initial_field = deepcopy(self.field.field)
         except Exception as e:
-            print(e)
+            # print(e)
+            pass
 
     @timeit
     def solve(self) -> Field:
@@ -105,7 +106,7 @@ class Solver:
             except UnsolvableError:
                 continue
             except Exception as e:
-                print(e)
+                # print(e)
                 continue
 
             if field.solved:
