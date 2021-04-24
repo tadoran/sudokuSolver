@@ -69,6 +69,12 @@ class Field_np:
                 raise UnsolvableError
 
     def solve(self) -> bool:
+        try:
+            self.validate()
+        except UnsolvableError:
+            self.unsolvable = True
+            self.solved = False
+            return
         calculate_again = True
 
         empty_points = np.flatnonzero(self.fld[0, :] == 0, )
