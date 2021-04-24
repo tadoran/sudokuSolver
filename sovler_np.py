@@ -72,7 +72,7 @@ class Solver:
             # field.mutate_field(field.matrix_from_str(current_field_str), calculate=False)
             field.mutate_field(current_field_str, calculate=False)
 
-            self.field.initial_field = deepcopy(self.field.field)
+            self.field.initial_field = deepcopy(self.field.fld)
         except Exception as e:
             # print(e)
             pass
@@ -100,6 +100,7 @@ class Solver:
                 current_field_str, _ = self.snapshots.popitem(last=True)
                 self.tested.add(current_field_str)
                 # field.mutate_field(field.matrix_from_str(current_field_str), calculate=iteration != 0)
+                field.unsolvable = False
                 field.mutate_field(current_field_str, calculate=iteration != 0)
                 if iteration == 0:
                     if self.print_start_matrix:

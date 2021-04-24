@@ -1,7 +1,5 @@
 import numpy as np
 
-from num_field import array_to_clipboard
-
 
 class Point_np:
 
@@ -22,11 +20,12 @@ class Point_np:
     def value(self, val: int) -> None:
         # OK
         if self.parent.fld[0, self.position] == val:
+            self.parent.fld[1:, self.position] = 0
             return
         if val in self.possible_values:
             self.parent.fld[0, self.position] = val
             self.parent.fld[1:, self.position] = 0
-            print(f"Point {self.parent.fld_map.row_column_by_pos(self.position)} is {val}")
+            # print(f"Point {self.parent.fld_map.row_column_by_pos(self.position)} is {val}")
 
             related_pts_nums_all = self.parent.fld_map.related_excl(self.position)
             [pnt.restrict_by_neighbours() for pnt in self.parent.points[related_pts_nums_all]]
@@ -97,6 +96,7 @@ class Point_np:
                 (self.get_column(False), self.parent.fld_map.column_all(self.position))
         )):
             full_pts_w_numbers = np.where(pts == 1, np.tile(np.arange(10), (pts.shape[1], 1)).T, pts)
+            full_pts_w_numbers[0, :] = 0
             if np.any(np.sum(full_pts_w_numbers > 0, axis=1) == 1):
                 if np.count_nonzero(full_pts_w_numbers[np.sum(full_pts_w_numbers > 0, axis=1) == 1, :],
                                     axis=0).max() > 1:
@@ -107,15 +107,16 @@ class Point_np:
                 ])
 
                 for pt_pos in np.flatnonzero(new_vals[0]):
-                    try:
-                        self.parent.points[positions[pt_pos]].value = new_vals[0, pt_pos]
+                    if self.parent.fld[0, positions[pt_pos]] == 0:
+                        try:
+                            self.parent.points[positions[pt_pos]].value = new_vals[0, pt_pos]
 
-                        # self.parent.fld[:, positions[pt_pos]] = new_vals[:, pt_pos]
-                        # related_pts_nums_all = self.parent.fld_map.related_excl(positions[pt_pos])
-                        # [pnt.restrict_by_neighbours() for pnt in self.parent.points[related_pts_nums_all]]
+                            # self.parent.fld[:, positions[pt_pos]] = new_vals[:, pt_pos]
+                            # related_pts_nums_all = self.parent.fld_map.related_excl(positions[pt_pos])
+                            # [pnt.restrict_by_neighbours() for pnt in self.parent.points[related_pts_nums_all]]
 
-                    except Exception as e:
-                        print(e)
+                        except Exception as e:
+                            print(e)
 
     # def calculate_single_pos_possible_old(self) -> None:
     #     # TODO
@@ -141,8 +142,8 @@ class Point_np:
                 (self.get_column(False), self.parent.fld_map.column_all(self.position))
         )):
             line = np.vstack([positions, pts])
-            array_to_clipboard(line)
-            print("Hi")
+            # array_to_clipboard(line)
+            # print("Hi")
 
     def calculate_square_only_possible_row_or_col(self) -> None:
         # TODO
@@ -155,8 +156,8 @@ class Point_np:
             return
 
         square, positions = self.get_square(False), self.parent.fld_map.square_all(self.position)
-        line = np.vstack([positions, square])
-        array_to_clipboard(line)
+        # line = np.vstack([positions, square])
+        # array_to_clipboard(line)
         # print("Hi")
 
         # If possible in given positions and not possible in others - value is restricted to row(v) or column(h).
@@ -198,14 +199,14 @@ class Point_np:
 
     def restrict_by_neighbours(self) -> None:
         # OK
-        # impossible_vals = self.get_all_related_points()[0, self.get_all_related_points()[0, :] > 0]
+        # impossible_vals_old =           self.get_all_related_points()[0, self.get_all_related_points()[0, :] > 0]
         impossible_vals = np.unique(self.get_all_related_points()[0, self.get_all_related_points()[0, :] > 0])
-
+        # print(impossible_vals_old,impossible_vals)
         self.apply_restrictions(impossible_vals)
 
     def restrict_value(self, value):
         if self.parent.fld[value, self.position] > 0:
-            print(f"Restrict {self.position} to be ({value})")
+            # print(f"Restrict {self.position} to be ({value})")
             self.parent.fld[value, self.position] = 0
             self.calculate_by_restrictions()
 
@@ -228,7 +229,7 @@ class Point_np:
         self.calculate_single_pos_possible()
         # self.calculate_single_pos_possible_old()
         # self.calculate_naked_pairs()
-        self.calculate_square_only_possible_row_or_col()
+        # self.calculate_square_only_possible_row_or_col()
         self.calculate_by_restrictions()
 
         if self.has_value:
@@ -243,8 +244,8 @@ class Point_np:
             pass
 
     def flush(self) -> None:
-        # OK
-        self.parent.fld[1:, self.position] = 1
+        if self.parent.fld[0, self.position] == 0:
+            self.parent.fld[1:, self.position] = 1
 
     def __repr__(self):
         return f"Point_np({self.position}, {self.parent})"
