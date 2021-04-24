@@ -1,6 +1,6 @@
 from misc.timeKeeper import timeit
 # from sovler import Solver
-from sovler_np import Solver
+from sovler import Solver
 
 
 def web_single():

@@ -2,7 +2,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from itertools import count
 
-from field import Field
+from field import Field_np as Field
 from misc.errors import UnsolvableError
 from misc.timeKeeper import timeit
 
@@ -69,8 +69,9 @@ class Solver:
         field = self.field
         try:
             current_field_str = list(self.snapshots.keys())[-1]
-            field.mutate_field(field.matrix_from_str(current_field_str), calculate=False)
-            self.field.initial_field = deepcopy(self.field.field)
+            field.mutate_field(current_field_str, calculate=False)
+
+            self.field.initial_field = deepcopy(self.field.fld)
         except Exception as e:
             # print(e)
             pass
@@ -97,7 +98,8 @@ class Solver:
             try:
                 current_field_str, _ = self.snapshots.popitem(last=True)
                 self.tested.add(current_field_str)
-                field.mutate_field(field.matrix_from_str(current_field_str), calculate=iteration != 0)
+                field.unsolvable = False
+                field.mutate_field(current_field_str, calculate=iteration != 0)
                 if iteration == 0:
                     if self.print_start_matrix:
                         print(field)
@@ -116,13 +118,11 @@ class Solver:
                 return field
 
             elif field.unsolvable:
-                # print(f"{iteration} - Solution is unsolvable")
                 self.tested.add(current_field_str)
                 pass
 
             elif len(field.possible_branches) > 0:
                 possible_branches = [f for f in field.possible_branches if f not in self.tested]
-                # print(f"{iteration} - {len(possible_branches)} branches added, {len(self.snapshots)} total")
                 self.snapshots.update(dict.fromkeys(possible_branches))
         if not field.solved:
             print("Solution was NOT found")
